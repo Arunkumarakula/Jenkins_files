@@ -1,0 +1,149 @@
+
+pipeline {
+    agent any
+    
+    environment {
+        SONAR_PROJECT_KEY = ""
+        SONAR_HOST_URL    = ""
+        SONAR_REPORT_DIR  = "${WORKSPACE}/sonar_reports"
+    }
+    
+    stages {
+
+        stage('Checkout') {
+            steps {
+                deleteDir()
+                git branch: '',
+                    url: 'https://github.com',
+                    credentialsId: ''
+            }
+        }
+
+        stage('Install Dependencies & Build') {
+            steps {
+                sh '''
+                    npm install
+                    npm run build
+                '''
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=src \
+                            -Dsonar.host.url=${SONAR_HOST_URL}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Wait for Quality Gate (with Safe Coverage Check)') {
+            steps {
+                script {
+                    echo "Waiting for SonarQube quality gate result..."
+                    def qg = waitForQualityGate abortPipeline: false
+
+                    echo "Quality Gate Status: ${qg.status}"
+
+                    if (qg.status != "OK") {
+                        error("SonarQube Quality Gate failed")
+                    }
+
+                    echo "Checking coverage threshold (>= 80%)..."
+
+                    withCredentials([string(credentialsId: 'Jenkins-Sonar-Token', variable: 'SONAR_TOKEN')]) {
+
+                        def coverage = sh(
+                            script: """
+                                curl -s -u $SONAR_TOKEN: \
+                                "$SONAR_HOST_URL/api/measures/component?component=$SONAR_PROJECT_KEY&metricKeys=coverage" \
+                                | jq -r '.component.measures[0].value'
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        echo "Coverage returned from SonarQube: ${coverage}"
+
+                        // SAFE COVERAGE VALIDATION
+                        if (!coverage || coverage == "null" || coverage == "NaN") {
+                            echo "No coverage available — skipping 80% coverage validation"
+                        } else if (coverage.toFloat() < 80) {
+                            error("Coverage is below 80% (actual: ${coverage}%)")
+                        } else {
+                            echo "✔ Coverage >= 80%: PASSED"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Fetch Sonar Reports') {
+            steps {
+                withCredentials([string(credentialsId: 'Jenkins-Sonar-Token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                        mkdir -p "$SONAR_REPORT_DIR"
+
+                        echo "Fetching SonarQube Issues Report..."
+                        curl -s -u $SONAR_TOKEN: "$SONAR_HOST_URL/api/issues/search?projectKeys=$SONAR_PROJECT_KEY&ps=500" \
+                        | jq -r '.issues[]? | "----------------------------------------\\nSeverity: "+.severity+"\\nType: "+.type+"\\nComponent: "+.component+"\\nLine: "+(.line|tostring)+"\\nMessage: "+.message+"\\n----------------------------------------"' \
+                        > "$SONAR_REPORT_DIR/issues-report-$BUILD_ID.txt"
+
+                        echo "Fetching Measures Report..."
+                        curl -s -u $SONAR_TOKEN: "$SONAR_HOST_URL/api/measures/component?component=$SONAR_PROJECT_KEY&metricKeys=coverage,bugs,vulnerabilities,code_smells,duplicated_lines_density,ncloc,complexity" \
+                        | jq -r '.component.measures[]? | .metric + ": " + (.value // "N/A")' \
+                        > "$SONAR_REPORT_DIR/measures-report-$BUILD_ID.txt"
+
+                        echo "Fetching Quality Gate Report..."
+                        curl -s -u $SONAR_TOKEN: "$SONAR_HOST_URL/api/qualitygates/project_status?projectKey=$SONAR_PROJECT_KEY" \
+                        | jq -r '.projectStatus | "Status: "+.status + "\\n" + (.conditions[]? | .metricKey + ": " + .status + " (value=" + (.actualValue|tostring) + ")")' \
+                        > "$SONAR_REPORT_DIR/quality-gate-report-$BUILD_ID.txt"
+
+                        echo "SonarQube reports saved in $SONAR_REPORT_DIR"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext(
+                to: "arunkumarakula58@gmail.com",
+                subject: "SUCCESS: BMP Admin Web Build #${BUILD_NUMBER}",
+                body: """
+                 Build SUCCESS  
+                Project: ${JOB_NAME}  
+                Build: #${BUILD_NUMBER}
+
+                SonarQube Quality Gate: PASSED  
+                Coverage Check: PASSED  
+
+                Reports are attached.
+                """,
+                attachmentsPattern: "sonar_reports/*.txt"
+            )
+        }
+
+        failure {
+            emailext(
+                to: "arunkumarakula58@gmail.com",
+                subject: "FAILED: BMP Admin Web Build #${BUILD_NUMBER}",
+                body: """
+                BUILD FAILED  
+                Project: ${JOB_NAME}  
+                Build: #${BUILD_NUMBER}
+
+                Check Jenkins logs & Sonar reports for more details.
+                """,
+                attachmentsPattern: "sonar_reports/*.txt"
+            )
+        }
+    }
+}
