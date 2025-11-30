@@ -1,0 +1,19 @@
+## Steps to configure the gmail with jenkins jobs.
+
+Jenkins - Manage Jenkins - system - Extended E-mail Notification
+  - SMTP server: smtp.gmail.com
+  - port: 587
+  - Credentials: 
+  - Use TLS
+  - Default user e-mail suffix: @gmail.com
+
+
+E-mail Notification: 
+  - SMTP server: smtp.gmail.com
+  - port: 587
+  - Use TLS
+  - Default user e-mail suffix: @gmail.com
+  - Use SMTP Authentication
+    - User Name: arunkumarakula58@gmail.com
+    - Password: paste which is generated from gmail
+    - Use TLS
