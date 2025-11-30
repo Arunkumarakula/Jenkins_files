@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE      = "mfit-admin-service-test"
+        DOCKER_IMAGE      = ""
         DOCKER_TAG        = "latest"
-        CONTAINER_NAME    = "mfit-admin-service-test"
-    //     SONAR_PROJECT_KEY = "mfit-admin-service"
-    //     SONAR_HOST_URL    = "http://3.7.49.8:9000"
+        CONTAINER_NAME    = ""
+    //     SONAR_PROJECT_KEY = ""
+    //     SONAR_HOST_URL    = "http://:9000"
     //     SONAR_REPORT_DIR  = "${WORKSPACE}/sonar_reports"
     // 
     }
@@ -17,8 +17,8 @@ pipeline {
             steps {
                 deleteDir()
                 git branch: 'Develop',
-                    url: 'https://github.com/AJA-Consulting-Services-LLP/mfit-be-admin-service.git',
-                    credentialsId: 'mfit-token'
+                    url: '',
+                    credentialsId: ''
             }
         }
 
@@ -74,9 +74,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE      = "mfit-admin-service-test"
+        DOCKER_IMAGE      = ""
         DOCKER_TAG        = "latest"
-        CONTAINER_NAME    = "mfit-admin-service-test"
+        CONTAINER_NAME    = ""
     }
 
     stages {
@@ -85,8 +85,8 @@ pipeline {
             steps {
                 deleteDir()
                 git branch: 'Develop',
-                    url: 'https://github.com/AJA-Consulting-Services-LLP/mfit-be-admin-service.git',
-                    credentialsId: 'mfit-token'
+                    url: '',
+                    credentialsId: ''
             }
         }
 
