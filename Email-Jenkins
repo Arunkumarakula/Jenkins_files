@@ -1,0 +1,124 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE      = "mfit-admin-service-test"
+        DOCKER_TAG        = "latest"
+        CONTAINER_NAME    = "mfit-admin-service-test"
+    //     SONAR_PROJECT_KEY = "mfit-admin-service"
+    //     SONAR_HOST_URL    = "http://3.7.49.8:9000"
+    //     SONAR_REPORT_DIR  = "${WORKSPACE}/sonar_reports"
+    // 
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                deleteDir()
+                git branch: 'Develop',
+                    url: 'https://github.com/AJA-Consulting-Services-LLP/mfit-be-admin-service.git',
+                    credentialsId: 'mfit-token'
+            }
+        }
+
+        stage('Build Artifact') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+            }
+        }
+
+        // stage('Run Container') {
+        //     steps {
+        //         sh '''
+        //             docker rm -f $CONTAINER_NAME || true
+        //             docker run -d --name $CONTAINER_NAME -p 8011:8080 $DOCKER_IMAGE:$DOCKER_TAG
+        //         '''
+        //     }
+        // }
+
+    }
+
+    post {
+        always {
+            emailext (
+                subject: "Jenkins Pipeline: ${currentBuild.currentResult}",
+                body: """Build Number: ${currentBuild.number}
+Status: ${currentBuild.currentResult}
+Console Output: ${env.BUILD_URL}
+""",
+                to: 'arunkumarakula58@gmail.com',
+                mimeType: 'text/plain',
+                attachLog: true   
+            )
+
+            echo "Email sent. Pipeline finished."
+        }
+    }
+}
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------
+
+
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE      = "mfit-admin-service-test"
+        DOCKER_TAG        = "latest"
+        CONTAINER_NAME    = "mfit-admin-service-test"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                deleteDir()
+                git branch: 'Develop',
+                    url: 'https://github.com/AJA-Consulting-Services-LLP/mfit-be-admin-service.git',
+                    credentialsId: 'mfit-token'
+            }
+        }
+
+        stage('Build Artifact') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+            }
+        }
+    }
+
+    post {
+        always {
+            emailext (
+                subject: "Pipeline Status: ${currentBuild.currentResult}",
+                body: """<html>
+                            <body>
+                                <p>Build Status: ${currentBuild.currentResult}</p>
+                                <p>Build Number: ${currentBuild.number}</p>
+                                <p>Check the <a href="${env.BUILD_URL}">console output</a>.</p>
+                            </body>
+                         </html>""",
+                to: 'arunkumarakula58@gmail.com',
+                from: 'jenkins@example.com',
+                replyTo: 'jenkins@example.com',
+                mimeType: 'text/html'
+            )
+        }
+    }
+}
