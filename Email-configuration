@@ -1,4 +1,13 @@
 ## Steps to configure the gmail with jenkins jobs.
+    Required Plugins 
+    - Email Extension plugin
+    - Mailer plugin
+
+# we can install plugins multiple ways 
+  1. Install through jenkins UI - Plugins
+  2. Install plugin manually and update through jenkins UI - advance settings - upload file and deploy
+  3. Install directly /var/lib/jenkins/plugins path using the wget command.
+
 
 Jenkins - Manage Jenkins - system - Extended E-mail Notification
   - SMTP server: smtp.gmail.com
